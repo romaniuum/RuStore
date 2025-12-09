@@ -298,7 +298,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Spacer(Modifier.height(80.dp))
-            Image(painter = painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.size(128.dp))
+            Image(painter = painterResource(R.drawable.rustorelogo), contentDescription = null, modifier = Modifier.size(128.dp))
             Text("Добро пожаловать\nв RuStore", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             Text("Российский магазин приложений", color = Color.White.copy(0.9f), fontSize = 18.sp, textAlign = TextAlign.Center)
             Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(Color.White)) {
