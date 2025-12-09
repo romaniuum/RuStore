@@ -1,33 +1,45 @@
-@file:OptIn(ExperimentalMaterial3Api::class)        // убирает жёлтые предупреждения Material3
+@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.example.rustore
-import androidx.navigation.compose.*                 // добавляет все navigation-функции
+
+import androidx.navigation.compose.*
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.launch
 
 data class App(
     val id: Int,
@@ -37,6 +49,7 @@ data class App(
     val fullDescription: String,
     val category: String,
     val rating: String = "0+",
+    val screenshots: List<Int> = emptyList(),
     val iconId: Int
 )
 
@@ -48,14 +61,34 @@ class MainActivity : ComponentActivity() {
         val showedOnboardingShown = prefs.getBoolean("shown", false)
 
         val apps = listOf(
-            App(1, "ВКонтакте", "VK", "Социальная сеть №1", "Самая популярная социальная сеть в России", "Социальные сети", "12+", R.drawable.vklogo),
-            App(2, "Госуслуги", "Минцифры России", "Государственные услуги", "Получайте услуги онлайн", "Государственные", "0+", R.drawable.goslogo),
-            App(3, "СБПэй", "НСПК", "Оплата по QR", "Быстрые платежи", "Финансы", "0+", R.drawable.sbplogo),
-            App(4, "Яндекс Go", "Яндекс", "Такси и доставка", "Всё в одном приложении", "Транспорт", "0+", R.drawable.gologo),
-            App(5, "2ГИС", "2GIS", "Карты офлайн", "Навигатор без интернета", "Инструменты", "0+", R.drawable.gislogo),
-            App(6, "Тинькофф", "Тинькофф Банк", "Мобильный банк", "Лучший банк России", "Финансы", "6+", R.drawable.tbanklogo),
-            App(7, "Brawl Stars", "Supercell", "Сражения 3 на 3", "Динамичный экшен", "Игры", "6+", R.drawable.brawllogo),
-            App(8, "Мой МТС", "МТС", "Управление тарифом", "Контроль расходов", "Инструменты", "0+", R.drawable.mtslogo)
+            App(
+                id = 1,
+                name = "ВКонтакте",
+                developer = "VK",
+                shortDescription = "Социальная сеть №1",
+                fullDescription = "ВКонтакте — это платформа для общения, публикации фото и видео, создания сообществ и прослушивания музыки. В приложении доступны чаты, трансляции, история и персональные рекомендации. Безопасность и приватность профиля настраиваются в несколько касаний.",
+                category = "Социальные сети",
+                rating = "12+",
+                screenshots = listOf(R.drawable.vk_s1, R.drawable.vk_s2, R.drawable.vk_s3),
+                iconId = R.drawable.vklogo
+            ),
+            App(
+                id = 2,
+                name = "Госуслуги",
+                developer = "Минцифры России",
+                shortDescription = "Государственные услуги",
+                fullDescription = "Госуслуги позволяет получать государственные услуги онлайн: запись к врачу, получение справок, налоги, автоуслуги и многое другое. Приложение интегрируется с учетной записью и поддерживает безопасную авторизацию через подтвержденной учетной записи.",
+                category = "Госуслуги",
+                rating = "0+",
+                screenshots = listOf(R.drawable.gosuslugi_s1, R.drawable.gosuslugi_s2, R.drawable.gosuslugi_s3),
+                iconId = R.drawable.goslogo
+            ),
+            App(3, "СБПэй", "НСПК", "Оплата по QR", "Быстрые и безопасные платежи по QR-коду, перевод по номеру телефона и история операций. Поддерживает карты большинства банков и интеграцию со смартфоном.", "Финансы", "0+", listOf(R.drawable.sbpay_s1, R.drawable.sbpay_s2, R.drawable.sbpay_s3), R.drawable.sbplogo),
+            App(4, "Яндекс Go", "Яндекс", "Такси и доставка", "Яндекс Go объединяет такси, доставку еды, каршеринг и навигацию в одном приложении. Удобный интерфейс, отслеживание заказа, опции для бизнеса и скидки постоянным пользователям.", "Транспорт", "0+", listOf(R.drawable.yandexgo_s1, R.drawable.yandexgo_s2, R.drawable.yandexgo_s3), R.drawable.gologo),
+            App(5, "2ГИС", "2GIS", "Карты офлайн", "Подробные офлайн-карты, поиск организаций, маршруты и отзывы. 2ГИС показывает планировку зданий, телефоны и время работы, а также работает без интернета.", "Инструменты", "0+", listOf(R.drawable.gis_s1, R.drawable.gis_s2, R.drawable.gis_s3), R.drawable.gislogo),
+            App(6, "Тинькофф", "Тинькофф Банк", "Мобильный банк", "Тинькофф — мобильный банк для управления счетами, платежей, инвестиций и карт. Удобные переводы, кэшбэк и круглосуточная поддержка.", "Финансы", "6+", listOf(R.drawable.tbank_s1, R.drawable.tbank_s2, R.drawable.tbank_s3), R.drawable.tbanklogo),
+            App(7, "Brawl Stars", "Supercell", "Сражения 3 на 3", "Brawl Stars — динамичная многопользовательская игра с короткими матчами, уникальными бойцами и турнирами. Командная игра, прокачка бойцов и события каждый день.", "Игры", "6+", listOf(R.drawable.brawl_s1, R.drawable.brawl_s2, R.drawable.brawl_s3), R.drawable.brawllogo),
+            App(8, "Мой МТС", "МТС", "Управление тарифом", "Приложение Мой МТС позволяет управлять мобильным тарифом, мониторить расход трафика, пополнять баланс и подключать сервисы. Также доступны бонусы и поддержка.", "Инструменты", "0+", listOf(R.drawable.mts_s1, R.drawable.mts_s2), R.drawable.mtslogo)
         )
 
         setContent {
@@ -79,6 +112,14 @@ class MainActivity : ComponentActivity() {
                         val id = entry.arguments?.getString("appId")?.toIntOrNull() ?: 1
                         val app = apps.find { it.id == id }
                         if (app != null) AppDetailScreen(app, navController)
+                    }
+                    composable("app/{appId}/screenshot/{index}") { entry ->
+                        val id = entry.arguments?.getString("appId")?.toIntOrNull() ?: 1
+                        val index = entry.arguments?.getString("index")?.toIntOrNull() ?: 0
+                        val app = apps.find { it.id == id }
+                        if (app != null && index in app.screenshots.indices) {
+                            FullscreenScreenshotScreen(app, index, navController)
+                        }
                     }
                 }
             }
@@ -115,7 +156,7 @@ fun AppCard(app: App, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(6.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(painter = painterResource(app.iconId), null, Modifier.size(72.dp))
+            Image(painter = painterResource(app.iconId), contentDescription = null, modifier = Modifier.size(72.dp))
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(app.name, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
@@ -133,6 +174,9 @@ fun AppCard(app: App, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDetailScreen(app: App, navController: NavHostController) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -147,13 +191,14 @@ fun AppDetailScreen(app: App, navController: NavHostController) {
                     titleContentColor = Color.White
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding).padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(painter = painterResource(app.iconId), null, Modifier.size(100.dp))
+                Image(painter = painterResource(app.iconId), contentDescription = null, modifier = Modifier.size(100.dp))
                 Spacer(Modifier.width(20.dp))
                 Column {
                     Text(app.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -165,19 +210,81 @@ fun AppDetailScreen(app: App, navController: NavHostController) {
                     }
                 }
             }
-            Spacer(Modifier.height(32.dp))
+
+            Spacer(Modifier.height(24.dp))
+
+            if (app.screenshots.isNotEmpty()) {
+                Text("Скриншоты", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                Spacer(Modifier.height(8.dp))
+                LazyRow {
+                    itemsIndexed(app.screenshots) { index, resId ->
+                        Image(
+                            painter = painterResource(resId),
+                            contentDescription = "Скрин ${index + 1}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(width = 220.dp, height = 400.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    navController.navigate("app/${app.id}/screenshot/$index")
+                                }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
             Text("О приложении", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text(app.fullDescription, fontSize = 16.sp)
 
             Spacer(Modifier.height(40.dp))
             Button(
-                onClick = { },
+                onClick = {
+                    // Опциональная реализация: запуск установки через PackageInstaller требует APK/URI.
+                    // Пока показываем информационный Snackbar. В следующем шаге я объясню, как
+                    // интегрировать PackageInstaller или ориентироваться на существующие APK.
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Установка не реализована в демо-режиме")
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF))
             ) {
                 Text("Установить", color = Color.White, fontSize = 18.sp)
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FullscreenScreenshotScreen(app: App, index: Int, navController: NavHostController) {
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(app.name) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.Default.ArrowBack, "Назад", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Black,
+                    titleContentColor = Color.White
+                )
+            )
+        },
+        containerColor = Color.Black
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding).background(Color.Black), contentAlignment = Alignment.Center) {
+            Image(
+                painter = painterResource(app.screenshots[index]),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
         }
     }
 }
@@ -191,7 +298,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Spacer(Modifier.height(80.dp))
-            Image(painter = painterResource(R.drawable.ic_launcher_foreground), null, Modifier.size(128.dp))
+            Image(painter = painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.size(128.dp))
             Text("Добро пожаловать\nв RuStore", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             Text("Российский магазин приложений", color = Color.White.copy(0.9f), fontSize = 18.sp, textAlign = TextAlign.Center)
             Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(Color.White)) {
