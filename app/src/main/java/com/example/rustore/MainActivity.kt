@@ -2,6 +2,7 @@
 
 package com.example.rustore
 
+import android.net.Uri
 import androidx.navigation.compose.*
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.rotate
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -88,7 +90,7 @@ class MainActivity : ComponentActivity() {
             App(5, "2ГИС", "2GIS", "Карты офлайн", "Подробные офлайн-карты, поиск организаций, маршруты и отзывы. 2ГИС показывает планировку зданий, телефоны и время работы, а также работает без интернета.", "Инструменты", "0+", listOf(R.drawable.gis_s1, R.drawable.gis_s2, R.drawable.gis_s3), R.drawable.gislogo),
             App(6, "Тинькофф", "Тинькофф Банк", "Мобильный банк", "Тинькофф — мобильный банк для управления счетами, платежей, инвестиций и карт. Удобные переводы, кэшбэк и круглосуточная поддержка.", "Финансы", "6+", listOf(R.drawable.tbank_s1, R.drawable.tbank_s2, R.drawable.tbank_s3), R.drawable.tbanklogo),
             App(7, "Brawl Stars", "Supercell", "Сражения 3 на 3", "Brawl Stars — динамичная многопользовательская игра с короткими матчами, уникальными бойцами и турнирами. Командная игра, прокачка бойцов и события каждый день.", "Игры", "6+", listOf(R.drawable.brawl_s1, R.drawable.brawl_s2, R.drawable.brawl_s3), R.drawable.brawllogo),
-            App(8, "Мой МТС", "МТС", "Управление тарифом", "Приложение Мой МТС позволяет управлять мобильным тарифом, мониторить расход трафика, пополнять баланс и подключать сервисы. Также доступны бонусы и поддержка.", "Инструменты", "0+", listOf(R.drawable.mts_s1, R.drawable.mts_s2), R.drawable.mtslogo)
+            App(8, "Мой МТС", "МТС", "Управление тарифом", "Приложение Мой МТС позволяет управлять мобильным тарифом, мониторить расход трафика, пополнять баланс и подключать сервисы. Также доступны бонусы и поддержка.", "Инструменты", "0+", listOf(R.drawable.mts_s1, R.drawable.mts_s2, R.drawable.mts_s3), R.drawable.mtslogo)
         )
 
         setContent {
@@ -107,7 +109,18 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                    composable("catalog") { CatalogScreen(apps, navController) }
+                    // Main catalog (главный экран с приложениями). В AppBar добавлена кнопка "Категории".
+                    composable("catalog") { CatalogScreen(apps, navController, category = null) }
+
+                    // Categories screen — список категорий с кнопкой назад
+                    composable("categories") { CategoriesScreen(apps, navController) }
+
+                    // Catalog filtered by category — показывает стрелку назад, чтобы вернуться в категории
+                    composable("catalog/category/{category}") { entry ->
+                        val category = entry.arguments?.getString("category")?.let { Uri.decode(it) }
+                        CatalogScreen(apps, navController, category)
+                    }
+
                     composable("app/{appId}") { entry ->
                         val id = entry.arguments?.getString("appId")?.toIntOrNull() ?: 1
                         val app = apps.find { it.id == id }
@@ -128,11 +141,16 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CatalogScreen(apps: List<App>, navController: NavHostController) {
+fun CategoriesScreen(apps: List<App>, navController: NavHostController) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("RuStore", fontWeight = FontWeight.Bold) },
+                title = { Text("Категории", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = Color.White)
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color(0xFF0066FF),
                     titleContentColor = Color.White
@@ -140,8 +158,69 @@ fun CatalogScreen(apps: List<App>, navController: NavHostController) {
             )
         }
     ) { padding ->
+        val groups = apps.groupBy { it.category }
+        val items = groups.map { (name, list) -> name to list.size }
+
         LazyColumn(contentPadding = padding) {
-            items(apps) { app ->
+            items(items) { (name, count) ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp, 8.dp)
+                        .clickable {
+                            // Навигация к отфильтрованной витрине; оставляем категорию в backstack (чтобы можно было вернуться)
+                            navController.navigate("catalog/category/${Uri.encode(name)}")
+                        },
+                    elevation = CardDefaults.cardElevation(6.dp)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(name, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                            Text("$count приложений", color = Color.Gray, fontSize = 14.sp)
+                        }
+                        // Простая стрелочка как индикатор
+                        Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color(0xFF0066FF), modifier = Modifier.rotate(180f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CatalogScreen(apps: List<App>, navController: NavHostController, category: String? = null) {
+    val title = category ?: "RuStore"
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(title, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (category != null) {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(Icons.Default.ArrowBack, "Назад", tint = Color.White)
+                        }
+                    }
+                },
+                actions = {
+                    if (category == null) {
+                        TextButton(onClick = { navController.navigate("categories") }) {
+                            Text("Категории", color = Color.White)
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color(0xFF0066FF),
+                    titleContentColor = Color.White
+                )
+            )
+        }
+    ) { padding ->
+        val displayed = if (category == null) apps else apps.filter { it.category == category }
+
+        LazyColumn(contentPadding = padding) {
+            items(displayed) { app ->
                 AppCard(app) { navController.navigate("app/${app.id}") }
             }
         }
@@ -152,7 +231,10 @@ fun CatalogScreen(apps: List<App>, navController: NavHostController) {
 @Composable
 fun AppCard(app: App, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(16.dp, 8.dp).clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp, 8.dp)
+            .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(6.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -242,9 +324,6 @@ fun AppDetailScreen(app: App, navController: NavHostController) {
             Spacer(Modifier.height(40.dp))
             Button(
                 onClick = {
-                    // Опциональная реализация: запуск установки через PackageInstaller требует APK/URI.
-                    // Пока показываем информационный Snackbar. В следующем шаге я объясню, как
-                    // интегрировать PackageInstaller или ориентироваться на существующие APK.
                     scope.launch {
                         snackbarHostState.showSnackbar("Установка не реализована в демо-режиме")
                     }
